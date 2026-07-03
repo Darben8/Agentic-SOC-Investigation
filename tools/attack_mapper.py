@@ -39,6 +39,15 @@ def map_attack_techniques(
                 rationale="Multiple connection attempts across ports suggest active service discovery or scanning.",
             )
         )
+    elif alert_type == "powershell":
+        mappings.append(
+            AttackMapping(
+                tactic="Execution",
+                technique_id="T1059.001",
+                technique_name="Command and Scripting Interpreter: PowerShell",
+                rationale="The use of PowerShell is consistent with command execution techniques.",
+            )
+        )
         mappings.append(
             AttackMapping(
                 tactic="Discovery",
@@ -60,10 +69,10 @@ def map_attack_techniques(
     if any(result.reputation == "malicious" for result in intel_results):
         mappings.append(
             AttackMapping(
-                tactic="Command and Control",
-                technique_id="T1071",
-                technique_name="Application Layer Protocol",
-                rationale="Malicious indicator reputation may suggest adversary-controlled infrastructure involvement.",
+                tactic="Infrastructure",
+                technique_id="T1583",
+                technique_name="Acquire Infrastructure",
+                rationale="Malicious indicator reputation suggests possible adversary-controlled or abused infrastructure, but available evidence does not confirm command-and-control activity.",
             )
         )
 
