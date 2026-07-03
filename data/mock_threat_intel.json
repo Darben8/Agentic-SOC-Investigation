@@ -1,0 +1,38 @@
+{
+  "203.0.113.24": {
+    "reputation": "suspicious",
+    "confidence": 0.62,
+    "sources": ["local_mock", "training_fixture"],
+    "evidence": ["Seen in repeated authentication attempts in mock data."],
+    "details": {
+      "category": "brute_force_source"
+    }
+  },
+  "example-malware.test": {
+    "reputation": "malicious",
+    "confidence": 0.88,
+    "sources": ["local_mock"],
+    "evidence": ["Domain is marked as newly observed and associated with phishing simulation data."],
+    "details": {
+      "category": "phishing_domain"
+    }
+  },
+  "http://billing-check-login.example-malware.test/verify": {
+    "reputation": "malicious",
+    "confidence": 0.9,
+    "sources": ["local_mock"],
+    "evidence": ["URL path pattern resembles credential harvesting lure content."],
+    "details": {
+      "category": "credential_harvest_url"
+    }
+  },
+  "192.168.56.40": {
+    "reputation": "unknown",
+    "confidence": 0.25,
+    "sources": ["local_mock"],
+    "evidence": ["Private lab IP; external reputation context is not available."],
+    "details": {
+      "category": "private_address"
+    }
+  }
+}

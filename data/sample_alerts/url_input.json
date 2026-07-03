@@ -1,0 +1,4 @@
+{
+  "input_type": "suspicious_url",
+  "value": "http://billing-check-login.example-malware.test/verify"
+}

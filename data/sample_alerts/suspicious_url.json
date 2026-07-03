@@ -1,0 +1,13 @@
+{
+  "alert_name": "Suspicious URL Click",
+  "alert_type": "suspicious_url",
+  "severity": "medium",
+  "source": "Secure Email Gateway",
+  "username": "alex.smith",
+  "host": "wkstn-14",
+  "src_ip": "10.20.30.40",
+  "url": "http://billing-check-login.example-malware.test/verify",
+  "domain": "example-malware.test",
+  "raw_event_summary": "User clicked a newly observed URL from an email message flagged as suspicious.",
+  "timestamp": "2026-07-01T03:45:00Z"
+}

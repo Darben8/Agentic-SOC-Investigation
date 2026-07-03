@@ -1,0 +1,13 @@
+{
+  "alert_name": "Multiple Failed VPN Logins",
+  "alert_type": "brute_force",
+  "severity": "high",
+  "source": "SIEM",
+  "username": "jane.doe",
+  "src_ip": "203.0.113.24",
+  "dst_ip": "10.0.10.12",
+  "host": "vpn-gateway-01",
+  "event_count": 22,
+  "raw_event_summary": "22 failed VPN login attempts for jane.doe from a single public IP within 8 minutes.",
+  "timestamp": "2026-07-01T01:20:00Z"
+}

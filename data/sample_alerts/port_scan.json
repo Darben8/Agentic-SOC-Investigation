@@ -1,0 +1,24 @@
+{
+  "alert_name": "Potential Port Scan Detected",
+  "alert_type": "network_reconnaissance",
+  "severity": "medium",
+  "source": "Splunk",
+  "sourcetype": "linux:ufw",
+  "src_ip": "192.168.56.40",
+  "dst_ip": "192.168.56.11",
+  "protocol": "TCP",
+  "action": "blocked",
+  "event_count": 10,
+  "unique_destination_ports": 7,
+  "destination_ports": [
+    "587",
+    "8080",
+    "18975",
+    "53196",
+    "57956",
+    "61489",
+    "61787"
+  ],
+  "raw_event_summary": "Multiple TCP SYN packets from one source IP to several destination ports were blocked by UFW.",
+  "raw_events_available": true
+}

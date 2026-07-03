@@ -1,0 +1,53 @@
+{
+  "events": [
+    {
+      "_time": "2026-07-01T00:00:10Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:00:10 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53124 DPT=8080 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:00:22Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:00:22 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53125 DPT=587 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:00:35Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:00:35 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53126 DPT=57956 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:00:51Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:00:51 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53127 DPT=18975 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:01:03Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:01:03 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53128 DPT=53196 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:01:19Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:01:19 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53129 DPT=61489 SYN"
+    },
+    {
+      "_time": "2026-07-01T00:01:42Z",
+      "host": "ubuntu-lab",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 00:01:42 ubuntu-lab kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00 SRC=192.168.56.40 DST=192.168.56.11 LEN=60 PROTO=TCP SPT=53130 DPT=61787 SYN"
+    }
+  ]
+}

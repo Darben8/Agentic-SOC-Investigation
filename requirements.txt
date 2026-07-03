@@ -1,0 +1,6 @@
+langgraph
+openai
+streamlit
+pydantic
+python-dotenv
+requests
