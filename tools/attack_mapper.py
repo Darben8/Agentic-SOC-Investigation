@@ -30,6 +30,24 @@ def map_attack_techniques(
                 rationale="A suspicious URL can indicate user-targeted phishing or malicious redirection.",
             )
         )
+    elif alert_type == "internal_reconnaissance":
+        mappings.append(
+            AttackMapping(
+                tactic="Discovery",
+                technique_id="T1018",
+                technique_name="Remote System Discovery",
+                rationale="Internal host or service probing suggests discovery within the internal network.",
+            )
+        )
+    elif alert_type == "reconnaissance":
+        mappings.append(
+            AttackMapping(
+                tactic="Discovery",
+                technique_id="T1046",
+                technique_name="Network Service Scanning",
+                rationale="Reconnaissance activity is consistent with service discovery or targeted probing.",
+            )
+        )
     elif alert_type == "external_reconnaissance":
         mappings.append(
             AttackMapping(
@@ -39,23 +57,17 @@ def map_attack_techniques(
                 rationale="Multiple connection attempts across ports suggest active service discovery or scanning.",
             )
         )
-    elif alert_type == "powershell":
+    elif alert_type == "prompt_injection":
         mappings.append(
             AttackMapping(
                 tactic="Execution",
-                technique_id="T1059.001",
-                technique_name="Command and Scripting Interpreter: PowerShell",
-                rationale="The use of PowerShell is consistent with command execution techniques.",
+                technique_id="T1204",
+                technique_name="User Execution",
+                rationale="Crafted input attempts to influence downstream reasoning or operator behavior through adversarial instructions.",
             )
         )
-        mappings.append(
-            AttackMapping(
-                tactic="Discovery",
-                technique_id="T1046",
-                technique_name="Network Service Scanning",
-                rationale="Destination port enumeration is consistent with network service scanning.",
-            )
-        )
+    elif alert_type in {"benign_url", "malformed_input"}:
+        mappings = []
     else:
         mappings.append(
             AttackMapping(

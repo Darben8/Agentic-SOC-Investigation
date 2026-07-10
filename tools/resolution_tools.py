@@ -5,6 +5,8 @@ import socket
 from typing import Any
 from urllib.parse import urlparse
 
+from tools.audit_utils import make_audit_entry
+
 
 def parse_url(url: str):
     cleaned = url.strip()
@@ -34,7 +36,7 @@ def is_public_ip(ip: str) -> bool:
     )
 
 
-def resolve_dns(hostname: str) -> dict[str, Any]:
+def resolve_dns(hostname: str, audit_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     a_records: list[str] = []
     aaaa_records: list[str] = []
     cname: str | None = None
@@ -62,6 +64,21 @@ def resolve_dns(hostname: str) -> dict[str, Any]:
         error = str(exc)
 
     primary_ip = a_records[0] if a_records else aaaa_records[0] if aaaa_records else None
+    if audit_log is not None:
+        audit_log.append(
+            make_audit_entry(
+                agent_id="threat_intel",
+                agent_name="ThreatIntelAgent",
+                action="resolve_dns",
+                details={
+                    "hostname": hostname,
+                    "resolved": primary_ip is not None,
+                    "primary_ip": primary_ip,
+                    "cname": cname,
+                    "error": error,
+                },
+            )
+        )
     return {
         "hostname": hostname,
         "a_records": a_records,

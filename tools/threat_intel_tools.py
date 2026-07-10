@@ -11,6 +11,7 @@ import requests
 from dotenv import load_dotenv
 
 from state import ThreatIntelResult
+from tools.audit_utils import make_audit_entry
 
 load_dotenv()
 
@@ -173,8 +174,21 @@ def _vt_check_url(indicator: str) -> tuple[dict[str, Any], dict[str, int]]:
     }, _vt_reputation_and_confidence(stats)[2]
 
 
-def _query_virustotal(indicator: str, indicator_type: str) -> ThreatIntelResult:
+def _query_virustotal(
+    indicator: str,
+    indicator_type: str,
+    audit_log: list[dict[str, Any]] | None = None,
+) -> ThreatIntelResult:
     if not VT_API_KEY:
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_virustotal",
+                    details={"indicator": indicator, "indicator_type": indicator_type, "status": "mock_fallback", "reason": "api_key_missing"},
+                )
+            )
         return _result_from_mock(indicator, indicator_type, "VirusTotal API key not configured.")
 
     handlers = {
@@ -190,6 +204,20 @@ def _query_virustotal(indicator: str, indicator_type: str) -> ThreatIntelResult:
         details, _ = handler(indicator)
         stats = details.get("last_analysis_stats", {})
         reputation, confidence, normalized_stats = _vt_reputation_and_confidence(stats)
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_virustotal",
+                    details={
+                        "indicator": indicator,
+                        "indicator_type": indicator_type,
+                        "status": "success",
+                        "reputation": reputation,
+                    },
+                )
+            )
         return ThreatIntelResult(
             indicator=indicator,
             indicator_type=indicator_type,
@@ -216,13 +244,36 @@ def _query_virustotal(indicator: str, indicator_type: str) -> ThreatIntelResult:
             mocked=False,
         )
     except Exception as exc:
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_virustotal",
+                    details={
+                        "indicator": indicator,
+                        "indicator_type": indicator_type,
+                        "status": "mock_fallback",
+                        "reason": str(exc),
+                    },
+                )
+            )
         result = _result_from_mock(indicator, indicator_type, f"VirusTotal query failed: {exc}")
         result.errors.append(str(exc))
         return result
 
 
-def _query_abuseipdb(indicator: str) -> ThreatIntelResult:
+def _query_abuseipdb(indicator: str, audit_log: list[dict[str, Any]] | None = None) -> ThreatIntelResult:
     if not ABUSEIPDB_API_KEY:
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_abuseipdb",
+                    details={"indicator": indicator, "status": "mock_fallback", "reason": "api_key_missing"},
+                )
+            )
         return _result_from_mock(indicator, "ip", "AbuseIPDB API key not configured.")
 
     try:
@@ -237,6 +288,15 @@ def _query_abuseipdb(indicator: str) -> ThreatIntelResult:
         score = int(data.get("abuseConfidenceScore", 0))
         reputation = "malicious" if score >= 75 else "suspicious" if score >= 25 else "benign"
         confidence = round(min(0.95, 0.3 + (score / 100)), 2)
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_abuseipdb",
+                    details={"indicator": indicator, "status": "success", "reputation": reputation, "score": score},
+                )
+            )
         return ThreatIntelResult(
             indicator=indicator,
             indicator_type="ip",
@@ -254,12 +314,24 @@ def _query_abuseipdb(indicator: str) -> ThreatIntelResult:
             mocked=False,
         )
     except Exception as exc:
+        if audit_log is not None:
+            audit_log.append(
+                make_audit_entry(
+                    agent_id="threat_intel",
+                    agent_name="ThreatIntelAgent",
+                    action="query_abuseipdb",
+                    details={"indicator": indicator, "status": "mock_fallback", "reason": str(exc)},
+                )
+            )
         result = _result_from_mock(indicator, "ip", f"AbuseIPDB query failed: {exc}")
         result.errors.append(str(exc))
         return result
 
 
-def enrich_indicators(indicators: list[tuple[str, str]]) -> list[ThreatIntelResult]:
+def enrich_indicators(
+    indicators: list[tuple[str, str]],
+    audit_log: list[dict[str, Any]] | None = None,
+) -> list[ThreatIntelResult]:
     results: list[ThreatIntelResult] = []
     seen: set[tuple[str, str]] = set()
 
@@ -269,9 +341,9 @@ def enrich_indicators(indicators: list[tuple[str, str]]) -> list[ThreatIntelResu
             continue
         seen.add(key)
 
-        vt_result = _query_virustotal(indicator, indicator_type)
+        vt_result = _query_virustotal(indicator, indicator_type, audit_log=audit_log)
         if indicator_type == "ip":
-            abuse_result = _query_abuseipdb(indicator)
+            abuse_result = _query_abuseipdb(indicator, audit_log=audit_log)
             merged = ThreatIntelResult(
                 indicator=indicator,
                 indicator_type="ip",

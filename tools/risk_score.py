@@ -16,6 +16,11 @@ def score_risk(
         "brute_force": 30,
         "suspicious_url": 25,
         "external_reconnaissance": 20,
+        "internal_reconnaissance": 18,
+        "reconnaissance": 18,
+        "prompt_injection": 22,
+        "benign_url": 5,
+        "malformed_input": 5,
         "unknown": 10,
     }
     score += type_weights.get(alert_type, 10)
@@ -54,6 +59,8 @@ def score_risk(
     if not intel_results:
         confidence = min(confidence, 0.55)
         rationale.append("No enrichment results were available, lowering confidence.")
+    if alert_type in {"benign_url", "malformed_input"}:
+        confidence = min(confidence, 0.45)
 
     return RiskAssessment(
         severity=severity,
