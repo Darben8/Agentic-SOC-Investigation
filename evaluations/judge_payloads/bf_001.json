@@ -1,0 +1,132 @@
+{
+  "case_id": "bf_001",
+  "expected": {
+    "classification": "brute_force",
+    "severity_range": [
+      "medium",
+      "high",
+      "critical"
+    ],
+    "attack_ids": [
+      "T1110"
+    ],
+    "must_not_claim": [
+      "confirmed compromise",
+      "successful login"
+    ]
+  },
+  "final_report": {
+    "summary": "### SOC Investigation Summary\n\n**Alert Details:**  \n- **Alert Name:** Multiple Failed VPN Logins  \n- **Type:** Brute Force  \n- **Severity:** High  \n- **Source:** SIEM  \n- **Username:** jane.doe  \n- **Source IP:** 203.0.113.24  \n- **Destination IP:** 10.0.10.12  \n- **Host:** vpn-gateway-01  \n- **Event Count:** 22 failed login attempts  \n- **Timestamp:** 2026-07-01T01:20:00Z  \n- **Description:** 22 failed VPN login attempts for user \"jane.doe\" from a single public IP address within 8 minutes.  \n\n**Threat Intelligence:**  \n- **Indicator:** jane.doe  \n- **Reputation:** Unknown  \n- **Confidence Level:** 0.35  \n- **Sources:** Local mock  \n- **Evidence:** VirusTotal query failed with a 400 Client Error for the domain.  \n\n**Risk Assessment:**  \n- **Severity Rating:** Medium  \n- **Confidence:** 0.64  \n- **Score:** 55  \n- **Rationale:** The risk score reflects a base weight for brute force attempts combined with the unusually high event volume.  \n\n### Analysis and Conclusion:\nThe investigation centers around multiple failed login attempts for the user \"jane.doe,\" originating from a publicly accessible IP address. The rapid succession of these login attempts raises concerns of a brute force attack targeting this user account. Although the confidence of potential compromise remains moderate, as indicated by the risk score and threat intelligence, it's essential to monitor for any further activities associated with this IP.\n\n**Next Steps:**\n1. Temporarily lock the user account \"jane.doe\" to prevent unauthorized access.\n2. Monitor the source IP (203.0.113.24) for any subsequent activities.\n3. Execute a review of the authentication logs for similar pattern behaviors across other accounts.\n4. Consider enhancing VPN login security measures, such as implementing multi-factor authentication.\n\nOngoing vigilance is recommended to ensure the security of the network against potential brute force attacks.",
+    "likely_behavior": "Repeated authentication attempts are consistent with a brute force or password spraying pattern.",
+    "evidence": [
+      "Alert source: SIEM",
+      "Alert name: Multiple Failed VPN Logins",
+      "Indicators extracted: 2 IP(s), 0 URL(s), 1 domain(s).",
+      "Revision context: Critic requested one revision pass due to low confidence or unsupported claims.",
+      "Fallback note: Skipped enrichment for private/internal IP 10.0.10.12.",
+      "Fallback note: Skipped enrichment for private/internal IP 203.0.113.24.",
+      "Fallback note: Used mock threat intelligence for jane.doe (domain).",
+      "jane.doe (domain, original) reputation: unknown with confidence 0.35."
+    ],
+    "attack_mapping": [
+      {
+        "tactic": "Credential Access",
+        "technique_id": "T1110",
+        "technique_name": "Brute Force",
+        "rationale": "Repeated authentication failures or login attempts align with brute force behavior."
+      }
+    ],
+    "severity": "medium",
+    "confidence": 0.64,
+    "recommendations": [
+      "Preserve the alert, related logs, and host or firewall telemetry for follow-up review.",
+      "Block or monitor suspicious indicators at the firewall, proxy, or endpoint controls as appropriate.",
+      "Validate whether the impacted user or host shows additional signs of compromise.",
+      "Review authentication logs and enforce MFA or account lockout protections if missing."
+    ],
+    "caveats": [
+      "Confidence is reduced when enrichment data or original telemetry is limited.",
+      "Skipped enrichment for private/internal IP 10.0.10.12.",
+      "Skipped enrichment for private/internal IP 203.0.113.24.",
+      "Used mock threat intelligence for jane.doe (domain)."
+    ],
+    "source_attribution": [
+      {
+        "source_type": "normalized_alert",
+        "source_name": "SIEM",
+        "description": "Multiple Failed VPN Logins"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "jane.doe",
+        "indicator_type": "domain",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1110",
+        "technique_name": "Brute Force",
+        "rationale": "Repeated authentication failures or login attempts align with brute force behavior."
+      },
+      {
+        "source_type": "risk_score",
+        "severity": "medium",
+        "confidence": 0.64,
+        "score": 55,
+        "rationale": [
+          "Base alert-type weight applied for brute_force.",
+          "High event volume increased risk."
+        ]
+      },
+      {
+        "source_type": "normalized_alert",
+        "source_name": "SIEM",
+        "description": "Multiple Failed VPN Logins"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "jane.doe",
+        "indicator_type": "domain",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1110",
+        "technique_name": "Brute Force",
+        "rationale": "Repeated authentication failures or login attempts align with brute force behavior."
+      },
+      {
+        "source_type": "risk_score",
+        "severity": "medium",
+        "confidence": 0.64,
+        "score": 55,
+        "rationale": [
+          "Base alert-type weight applied for brute_force.",
+          "High event volume increased risk."
+        ]
+      }
+    ]
+  },
+  "critic_feedback": {
+    "unsupported_claims": [
+      "Indicator reputation is unknown, so maliciousness should not be stated conclusively."
+    ],
+    "uncertainty_flags": [],
+    "downgraded_conclusions": [],
+    "verification_notes": [
+      "**Verification Note:** \n\nThe SOC Investigation Report provides a comprehensive overview of the incident involving multiple failed VPN logins for user \"jane.doe.\" The analysis identifies it as a potential brute force attack, with a high severity alert and a medium risk rating. Recommended actions are appropriate and align with best practices for mitigating such threats. Additional careful monitoring of related activities and enhancement of security measures is advised."
+    ]
+  },
+  "revision": {
+    "revision_count": 1,
+    "revision_history": [
+      "Critic requested one revision pass due to low confidence or unsupported claims."
+    ]
+  }
+}

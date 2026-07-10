@@ -1,0 +1,158 @@
+{
+  "case_id": "url_001",
+  "expected": {
+    "classification": "suspicious_url",
+    "severity_range": [
+      "medium",
+      "high",
+      "critical"
+    ],
+    "attack_ids": [
+      "T1566.002"
+    ],
+    "must_not_claim": [
+      "confirmed compromise",
+      "malware executed"
+    ]
+  },
+  "final_report": {
+    "summary": "### SOC Investigation Summary\n\n**Alert Overview:**\n- **Alert Name:** Suspicious URL Click\n- **Severity:** Medium\n- **Source:** Secure Email Gateway\n- **Username:** alex.smith\n- **Host:** wkstn-14\n- **Source IP:** 10.20.30.40\n- **URL Clicked:** [http://billing-check-login.example-malware.test/verify](http://billing-check-login.example-malware.test/verify)\n- **Timestamp:** July 1, 2026, 03:45 UTC\n\n**Incident Details:**\nThe SOC received an alert indicating that user **alex.smith** clicked a URL flagged as suspicious in an email. This URL is associated with a domain noted for credential harvesting.\n\n**Threat Intelligence Findings:**\n- The clicked URL has a reputation rating of **malicious** with a high confidence level of **90%**, based on its resemblance to phishing tactics aimed at credential theft.\n- The domain **example-malware.test** was observed as malicious, scoring **88%** confidence for phishing activity, indicating it has been linked to phishing simulations.\n- There were multiple failed attempts to verify the reputation of the URLs and domains via VirusTotal, resulting in **400 Client Error: Bad Request** messages.\n\n**Risk Assessment:**\n- **Overall Risk Severity:** Critical\n- **Confidence Level:** 84%\n- **Rationale for Risk Score:** The alert types and multiple indicators of malicious activity substantiate the high-risk rating.\n\n**Recommendations:**\n- Immediate review of alex.smith's network activity for suspicious behavior following the URL click.\n- Conduct phishing awareness training for all staff to mitigate risks from similar incidents.\n- Consider a temporary suspension of access for the impacted account until further analysis confirms removal of threat. \n\n### Conclusion\nThe click on the suspicious URL poses a significant risk, with clear associations to credential theft tactics. Immediate action is necessary to safeguard the network and mitigate potential exploitation.",
+    "likely_behavior": "The alert indicates user interaction with a suspicious or potentially malicious URL.",
+    "evidence": [
+      "Alert source: Secure Email Gateway",
+      "Alert name: Suspicious URL Click",
+      "Indicators extracted: 1 IP(s), 1 URL(s), 3 domain(s).",
+      "Revision context: Critic requested one revision pass due to low confidence or unsupported claims.",
+      "Fallback note: Skipped enrichment for private/internal IP 10.20.30.40.",
+      "Fallback note: Used mock threat intelligence for http://billing-check-login.example-malware.test/verify (url).",
+      "Fallback note: Used mock threat intelligence for billing-check-login.example-malware.test (domain).",
+      "Fallback note: Used mock threat intelligence for alex.smith (domain)."
+    ],
+    "attack_mapping": [
+      {
+        "tactic": "Initial Access",
+        "technique_id": "T1566.002",
+        "technique_name": "Phishing: Spearphishing Link",
+        "rationale": "A suspicious URL can indicate user-targeted phishing or malicious redirection."
+      },
+      {
+        "tactic": "Infrastructure",
+        "technique_id": "T1583",
+        "technique_name": "Acquire Infrastructure",
+        "rationale": "Malicious indicator reputation suggests possible adversary-controlled or abused infrastructure, but available evidence does not confirm command-and-control activity."
+      }
+    ],
+    "severity": "critical",
+    "confidence": 0.84,
+    "recommendations": [
+      "Preserve the alert, related logs, and host or firewall telemetry for follow-up review.",
+      "Block or monitor suspicious indicators at the firewall, proxy, or endpoint controls as appropriate.",
+      "Validate whether the impacted user or host shows additional signs of compromise.",
+      "Isolate affected endpoints if browser, email, or EDR telemetry suggests payload delivery."
+    ],
+    "caveats": [
+      "Confidence is reduced when enrichment data or original telemetry is limited.",
+      "Skipped enrichment for private/internal IP 10.20.30.40.",
+      "Used mock threat intelligence for http://billing-check-login.example-malware.test/verify (url).",
+      "Used mock threat intelligence for billing-check-login.example-malware.test (domain).",
+      "Used mock threat intelligence for alex.smith (domain).",
+      "Used mock threat intelligence for example-malware.test (domain)."
+    ],
+    "source_attribution": [
+      {
+        "source_type": "normalized_alert",
+        "source_name": "Secure Email Gateway",
+        "description": "Suspicious URL Click"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "http://billing-check-login.example-malware.test/verify",
+        "indicator_type": "url",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "billing-check-login.example-malware.test",
+        "indicator_type": "domain",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "alex.smith",
+        "indicator_type": "domain",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "example-malware.test",
+        "indicator_type": "domain",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1566.002",
+        "technique_name": "Phishing: Spearphishing Link",
+        "rationale": "A suspicious URL can indicate user-targeted phishing or malicious redirection."
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1583",
+        "technique_name": "Acquire Infrastructure",
+        "rationale": "Malicious indicator reputation suggests possible adversary-controlled or abused infrastructure, but available evidence does not confirm command-and-control activity."
+      },
+      {
+        "source_type": "risk_score",
+        "severity": "critical",
+        "confidence": 0.84,
+        "score": 85,
+        "rationale": [
+          "Base alert-type weight applied for suspicious_url.",
+          "2 indicator(s) were rated malicious.",
+          "Multiple ATT&CK mappings support stronger behavioral confidence."
+        ]
+      },
+      {
+        "source_type": "normalized_alert",
+        "source_name": "Secure Email Gateway",
+        "description": "Suspicious URL Click"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "http://billing-check-login.example-malware.test/verify",
+        "indicator_type": "url",
+        "providers": [
+          "local_mock"
+        ],
+        "provenance": "original"
+      }
+    ]
+  },
+  "critic_feedback": {
+    "unsupported_claims": [
+      "Indicator reputation is unknown, so maliciousness should not be stated conclusively."
+    ],
+    "uncertainty_flags": [],
+    "downgraded_conclusions": [],
+    "verification_notes": [
+      "**Verification Note:**\n\nThe investigation report presents a detailed analysis of a suspicious URL click by the user **alex.smith**, with a critical overall risk assessment. Evidence of the URL's malicious reputation is well-supported, along with appropriate recommended actions for mitigation. However, the reliance on mock threat intelligence raises concerns about the confidence level in the findings. Further verification of the URL and domain reputations is recommended to enhance the findings' robustness."
+    ]
+  },
+  "revision": {
+    "revision_count": 1,
+    "revision_history": [
+      "Critic requested one revision pass due to low confidence or unsupported claims."
+    ]
+  }
+}

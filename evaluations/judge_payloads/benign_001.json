@@ -1,0 +1,111 @@
+{
+  "case_id": "benign_001",
+  "expected": {
+    "classification": "benign_url",
+    "severity_range": [
+      "low",
+      "medium"
+    ],
+    "attack_ids": [
+      "T1566.002"
+    ],
+    "must_not_claim": [
+      "confirmed compromise",
+      "malware executed",
+      "credential theft confirmed"
+    ]
+  },
+  "final_report": {
+    "summary": "### SOC Investigation Summary\n\n**Alert Overview:**\n- **Alert Name:** Suspicious URL Submitted\n- **Severity:** Medium\n- **Source:** Manual URL Input\n- **URL:** [https://www.linkedin.com/](https://www.linkedin.com/)\n- **Event Count:** 1\n\nA user submitted the URL directly for investigation, triggering an alert due to its classification as a suspicious URL.\n\n**Threat Intelligence Analysis:**\n1. **URL Reputation:**\n   - **Indicator:** [https://www.linkedin.com/](https://www.linkedin.com/)\n   - **Reputation:** Benign\n   - **VirusTotal Analysis:** \n     - Malicious: 0\n     - Suspicious: 0\n     - Harmless: 61\n     - Undetected: 31\n\n2. **Domain Reputation:**\n   - **Domain:** www.linkedin.com\n   - **Reputation:** Benign\n   - **VirusTotal Analysis:** \n     - Malicious: 0\n     - Suspicious: 0\n     - Harmless: 59\n     - Undetected: 32\n\n3. **IP Reputation:**\n   - **IP Address:** 172.64.146.215\n   - **Reputation:** Benign\n   - **VirusTotal Analysis:** \n     - Malicious: 0\n     - Suspicious: 0\n     - Harmless: 55\n     - Undetected: 36\n   - **Source:** Cloudflare, Inc.\n\n**Risk Assessment:**\n- **Overall Severity:** Medium\n- **Confidence Level:** 53%\n- **Risk Score:** 40\n- **Rationale:** The alert\u2019s classification as a suspicious URL prompted its examination, but analysis indicates a benign reputation across multiple sources.\n\n**Conclusion:**\nThe submitted URL, when assessed against leading threat intelligence sources, is deemed benign with no malicious or suspicious activity reported. Recommended actions include monitoring and periodic review, but no immediate threat is identified.",
+    "likely_behavior": "The alert indicates user interaction with a suspicious or potentially malicious URL.",
+    "evidence": [
+      "Alert source: Manual URL Input",
+      "Alert name: Suspicious URL Submitted",
+      "Indicators extracted: 0 IP(s), 1 URL(s), 1 domain(s).",
+      "https://www.linkedin.com/ (url, original) reputation: benign with confidence 0.45.",
+      "www.linkedin.com (domain, original) reputation: benign with confidence 0.45.",
+      "172.64.146.215 (ip, derived_dns) reputation: benign with confidence 0.45."
+    ],
+    "attack_mapping": [
+      {
+        "tactic": "Initial Access",
+        "technique_id": "T1566.002",
+        "technique_name": "Phishing: Spearphishing Link",
+        "rationale": "A suspicious URL can indicate user-targeted phishing or malicious redirection."
+      }
+    ],
+    "severity": "medium",
+    "confidence": 0.53,
+    "recommendations": [
+      "Preserve the alert, related logs, and host or firewall telemetry for follow-up review.",
+      "Block or monitor suspicious indicators at the firewall, proxy, or endpoint controls as appropriate.",
+      "Validate whether the impacted user or host shows additional signs of compromise.",
+      "Isolate affected endpoints if browser, email, or EDR telemetry suggests payload delivery."
+    ],
+    "caveats": [
+      "Confidence is reduced when enrichment data or original telemetry is limited."
+    ],
+    "source_attribution": [
+      {
+        "source_type": "normalized_alert",
+        "source_name": "Manual URL Input",
+        "description": "Suspicious URL Submitted"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "https://www.linkedin.com/",
+        "indicator_type": "url",
+        "providers": [
+          "VirusTotal"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "www.linkedin.com",
+        "indicator_type": "domain",
+        "providers": [
+          "VirusTotal"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "172.64.146.215",
+        "indicator_type": "ip",
+        "providers": [
+          "AbuseIPDB",
+          "VirusTotal"
+        ],
+        "provenance": "derived_dns"
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1566.002",
+        "technique_name": "Phishing: Spearphishing Link",
+        "rationale": "A suspicious URL can indicate user-targeted phishing or malicious redirection."
+      },
+      {
+        "source_type": "risk_score",
+        "severity": "medium",
+        "confidence": 0.53,
+        "score": 40,
+        "rationale": [
+          "Base alert-type weight applied for suspicious_url."
+        ]
+      }
+    ]
+  },
+  "critic_feedback": {
+    "unsupported_claims": [],
+    "uncertainty_flags": [],
+    "downgraded_conclusions": [],
+    "verification_notes": [
+      "**Verification Note:**\n\nThe investigation report correctly identifies the submitted URL as benign based on comprehensive threat intelligence analysis, including VirusTotal results showing no malicious or suspicious activity. Despite the medium severity of the alert, the evidence supports the conclusion that there is no immediate threat. Recommended actions are appropriate given the situation."
+    ]
+  },
+  "revision": {
+    "revision_count": 0,
+    "revision_history": []
+  }
+}
