@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "_time": "2026-07-01T09:00:01Z",
+      "host": "splunk-forwarder-01",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 09:00:01 splunk-forwarder-01 kernel: [UFW ALLOW] IN=eth0 OUT= MAC=00 SRC=192.168.56.60 DST=192.168.56.20 LEN=60 PROTO=TCP SPT=52001 DPT=9997"
+    },
+    {
+      "_time": "2026-07-01T09:00:09Z",
+      "host": "splunk-forwarder-01",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 09:00:09 splunk-forwarder-01 kernel: [UFW ALLOW] IN=eth0 OUT= MAC=00 SRC=192.168.56.60 DST=192.168.56.20 LEN=60 PROTO=TCP SPT=52002 DPT=8089"
+    },
+    {
+      "_time": "2026-07-01T09:00:17Z",
+      "host": "splunk-forwarder-01",
+      "source": "/var/log/ufw.log",
+      "sourcetype": "linux:ufw",
+      "_raw": "Jul 01 09:00:17 splunk-forwarder-01 kernel: [UFW AUDIT] IN=eth0 OUT= MAC=00 SRC=192.168.56.60 DST=192.168.56.20 LEN=60 PROTO=TCP SPT=52003 DPT=9997"
+    }
+  ]
+}
