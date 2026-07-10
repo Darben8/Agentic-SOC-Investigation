@@ -14,16 +14,53 @@ from agents.critic import run_critic
 from agents.investigator import run_investigator
 from agents.planner import run_planner
 from agents.threat_intel import run_threat_intel
+from ingestion.input_validation import validate_and_sanitize_input
 from ingestion.alert_normalizer import normalize_input
 from state import InvestigationState
+from tools.audit_utils import make_audit_entry
+
+
+def _input_validation_node(state: InvestigationState) -> dict[str, Any]:
+    sanitized_input, validation_results, validation_errors = validate_and_sanitize_input(state.raw_input)
+    audit_log = list(state.audit_log)
+    audit_log.append(
+        make_audit_entry(
+            agent_id="validator",
+            agent_name="PreRouterValidator",
+            action="validate_input",
+            details={
+                "validation_count": len(validation_results),
+                "error_count": len(validation_errors),
+            },
+        )
+    )
+    return {
+        "raw_input": sanitized_input,
+        "validation_results": list(state.validation_results) + validation_results,
+        "errors": list(state.errors) + validation_errors,
+        "audit_log": audit_log,
+    }
 
 
 def _input_router_node(state: InvestigationState) -> dict[str, Any]:
     normalized_alert = normalize_input(state.raw_input)
+    audit_log = list(state.audit_log)
+    audit_log.append(
+        make_audit_entry(
+            agent_id="validator",
+            agent_name="InputRouterNormalizer",
+            action="normalize_input",
+            details={
+                "raw_input_type": str(normalized_alert.get("raw_input_type", "unknown")),
+                "normalized_alert_name": str(normalized_alert.get("alert_name", "")),
+            },
+        )
+    )
     return {
         "normalized_alert": normalized_alert,
         "raw_alert": normalized_alert,
         "raw_input_type": str(normalized_alert.get("raw_input_type", "unknown")),
+        "audit_log": audit_log,
     }
 
 
@@ -58,12 +95,14 @@ def build_graph():
         ) from LANGGRAPH_IMPORT_ERROR
 
     workflow = StateGraph(InvestigationState)
+    workflow.add_node("input_validation", _input_validation_node)
     workflow.add_node("input_router", _input_router_node)
     workflow.add_node("planner", _planner_node)
     workflow.add_node("threat_intel", _threat_intel_node)
     workflow.add_node("investigator", _investigator_node)
     workflow.add_node("critic", _critic_node)
-    workflow.add_edge(START, "input_router")
+    workflow.add_edge(START, "input_validation")
+    workflow.add_edge("input_validation", "input_router")
     workflow.add_edge("input_router", "planner")
     workflow.add_conditional_edges(
         "planner",

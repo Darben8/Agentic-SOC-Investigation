@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-AlertType = Literal["brute_force", "suspicious_url", "external_reconnaissance", "unknown"]
+AlertType = Literal["brute_force", "suspicious_url", "external_reconnaissance", "internal_reconnaissance", "reconnaissance", "prompt_injection", "benign_url", "malformed_input", "unknown"]
 SeverityLevel = Literal["low", "medium", "high", "critical"]
 
 
@@ -62,6 +62,7 @@ class InvestigationReport(BaseModel):
     confidence: float = 0.0
     recommended_actions: list[str] = Field(default_factory=list)
     caveats: list[str] = Field(default_factory=list)
+    source_attribution: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CriticFeedback(BaseModel):
@@ -76,6 +77,7 @@ class InvestigationState(BaseModel):
     raw_alert: dict[str, Any] = Field(default_factory=dict)
     normalized_alert: dict[str, Any] = Field(default_factory=dict)
     raw_input_type: str = "unknown"
+    agent_registry_version: str = "1.0"
     alert_type: AlertType = "unknown"
     entities: Entities = Field(default_factory=Entities)
     investigation_plan: InvestigationPlan | dict[str, Any] = Field(default_factory=InvestigationPlan)
@@ -89,6 +91,10 @@ class InvestigationState(BaseModel):
     final_report: InvestigationReport | dict[str, Any] = Field(default_factory=InvestigationReport)
     errors: list[str] = Field(default_factory=list)
     fallback_notes: list[str] = Field(default_factory=list)
+    validation_results: list[dict[str, Any]] = Field(default_factory=list)
+    audit_log: list[dict[str, Any]] = Field(default_factory=list)
+    policy_violations: list[str] = Field(default_factory=list)
+    source_attribution: list[dict[str, Any]] = Field(default_factory=list)
     route_decision: str = "planner"
     needs_revision: bool = False
     revision_count: int = 0
