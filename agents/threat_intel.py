@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from governance.tool_policy import enforce_tool_access
 from state import InvestigationState
+from tools.audit_utils import make_audit_entry
 from tools.resolution_tools import extract_hostname, is_public_ip, resolve_dns
 from tools.threat_intel_tools import enrich_indicators
 
@@ -14,6 +16,11 @@ def run_threat_intel(state: InvestigationState) -> dict[str, Any]:
     resolution_trace: list[dict[str, Any]] = []
     fallback_notes: list[str] = list(state.fallback_notes)
     errors: list[str] = list(state.errors)
+    audit_log = list(state.audit_log)
+    policy_violations = list(state.policy_violations)
+
+    enforce_tool_access("threat_intel", "ThreatIntelAgent", "tools/resolution_tools.py", audit_log, policy_violations)
+    enforce_tool_access("threat_intel", "ThreatIntelAgent", "tools/threat_intel_tools.py", audit_log, policy_violations)
 
     def add_indicator(
         indicator: str,
@@ -53,7 +60,7 @@ def run_threat_intel(state: InvestigationState) -> dict[str, Any]:
         hostname = extract_hostname(url)
         if hostname:
             add_indicator(hostname, "domain", "derived_context", derived_from=url)
-            resolution = resolve_dns(hostname)
+            resolution = resolve_dns(hostname, audit_log=audit_log)
             resolution_trace.append({"source_indicator": url, "resolution": resolution})
             primary_ip = resolution.get("primary_ip")
             if primary_ip and is_public_ip(primary_ip):
@@ -75,7 +82,7 @@ def run_threat_intel(state: InvestigationState) -> dict[str, Any]:
 
     for domain in entities.domains:
         add_indicator(domain, "domain", "original")
-        resolution = resolve_dns(domain)
+        resolution = resolve_dns(domain, audit_log=audit_log)
         resolution_trace.append({"source_indicator": domain, "resolution": resolution})
         primary_ip = resolution.get("primary_ip")
         if primary_ip and is_public_ip(primary_ip):
@@ -95,7 +102,7 @@ def run_threat_intel(state: InvestigationState) -> dict[str, Any]:
             if error not in errors:
                 errors.append(error)
 
-    results = enrich_indicators(indicators)
+    results = enrich_indicators(indicators, audit_log=audit_log)
 
     for result in results:
         metadata = provenance_map.get((result.indicator, result.indicator_type), {})
@@ -110,11 +117,26 @@ def run_threat_intel(state: InvestigationState) -> dict[str, Any]:
         for error in getattr(result, "errors", []):
             if error not in errors:
                 errors.append(error)
+    audit_log.append(
+        make_audit_entry(
+            agent_id="threat_intel",
+            agent_name="ThreatIntelAgent",
+            action="enrich_indicators",
+            details={
+                "indicator_count": len(indicators),
+                "result_count": len(results),
+                "resolution_events": len(resolution_trace),
+                "fallback_count": len(fallback_notes),
+            },
+        )
+    )
 
     return {
         "threat_intel_results": results,
         "fallback_notes": fallback_notes,
         "errors": errors,
+        "audit_log": audit_log,
+        "policy_violations": policy_violations,
         "threat_intel_output": {
             "indicators_requested": indicators,
             "resolution_trace": resolution_trace,
