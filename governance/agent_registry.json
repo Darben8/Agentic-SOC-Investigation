@@ -1,0 +1,78 @@
+{
+  "version": "1.0",
+  "agents": [
+    {
+      "agent_id": "validator",
+      "agent_name": "PreRouterValidator",
+      "role": "Validate and sanitize user input before routing.",
+      "allowed_tools": [
+        "ingestion/input_validation.py"
+      ],
+      "data_access": [
+        "raw_input"
+      ],
+      "risk_level": "medium"
+    },
+    {
+      "agent_id": "planner",
+      "agent_name": "PlannerAgent",
+      "role": "Classify alerts, extract entities, produce a plan, and route the workflow.",
+      "allowed_tools": [
+        "tools/ioc_extractor.py",
+        "agents/llm_utils.py"
+      ],
+      "data_access": [
+        "normalized_alert",
+        "entities",
+        "investigation_plan"
+      ],
+      "risk_level": "medium"
+    },
+    {
+      "agent_id": "threat_intel",
+      "agent_name": "ThreatIntelAgent",
+      "role": "Enrich indicators using DNS resolution, VirusTotal, AbuseIPDB, and mock data.",
+      "allowed_tools": [
+        "tools/resolution_tools.py",
+        "tools/threat_intel_tools.py"
+      ],
+      "data_access": [
+        "entities",
+        "threat_intel_results",
+        "fallback_notes",
+        "errors"
+      ],
+      "risk_level": "high"
+    },
+    {
+      "agent_id": "investigator",
+      "agent_name": "InvestigationAgent",
+      "role": "Analyze evidence, map ATT&CK, assess severity, and draft the report.",
+      "allowed_tools": [
+        "tools/attack_mapper.py",
+        "tools/risk_score.py",
+        "agents/llm_utils.py"
+      ],
+      "data_access": [
+        "normalized_alert",
+        "threat_intel_results",
+        "draft_report"
+      ],
+      "risk_level": "high"
+    },
+    {
+      "agent_id": "critic",
+      "agent_name": "CriticAgent",
+      "role": "Validate the draft report, flag uncertainty, and request a revision pass when needed.",
+      "allowed_tools": [
+        "agents/llm_utils.py"
+      ],
+      "data_access": [
+        "draft_report",
+        "critic_feedback",
+        "final_report"
+      ],
+      "risk_level": "medium"
+    }
+  ]
+}
