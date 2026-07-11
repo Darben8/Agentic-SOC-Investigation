@@ -1,6 +1,6 @@
 # SOC Investigation Copilot
 
-This project is a Python SOC investigation copilot built with LangGraph, Streamlit, Pydantic, and the OpenAI API. It accepts multiple input types, routes them through a deterministic input router and normalizer, runs a four-agent investigation workflow, and returns a validated structured investigation report.
+This project is a Python SOC investigation copilot built with LangGraph, Streamlit, Pydantic, and the OpenAI API. It accepts multiple input types, routes them through a deterministic input router and normalizer, runs a four-agent investigation workflow, and returns a validated structured investigation report with explicit routing and stop-reason handling.
 
 ## Features
 
@@ -14,6 +14,8 @@ This project is a Python SOC investigation copilot built with LangGraph, Streaml
 - VirusTotal and AbuseIPDB enrichment with local mock fallback when API keys are missing
 - Threat-intel provenance labels for original indicators and DNS-derived indicators
 - Streamlit UI with separate input modes and intermediate state views
+- Streamlit UI with route decision and stop reason display for demos
+- Explicit stop-reason handling for benign, malformed, prompt-injection, and insufficient-evidence cases
 
 ## Project Structure
 
@@ -122,6 +124,7 @@ Example:
 ```text
 Raw Input
 -> Input Router & Normalizer
+-> Stop Reason Check
 -> Planner Agent
 -> Threat Intelligence Agent (if routed)
 -> Investigation Agent
@@ -129,6 +132,21 @@ Raw Input
 -> Optional one-pass revision loop
 -> Final Report
 ```
+
+## Stop Reasons
+
+The workflow now uses explicit `stop_reason` values so terminal cases can be handled deterministically.
+
+Supported values include:
+
+- `investigation_complete`
+- `investigation_complete_with_limitations`
+- `benign_allowlisted`
+- `malformed_or_incomplete_input`
+- `adversarial_input_detected`
+- `insufficient_evidence`
+
+Benign URLs, malformed inputs, and prompt-injection inputs stop early. Normal malicious and reconnaissance cases continue through enrichment, analysis, and validation.
 
 ## Threat Intel Enrichment
 
@@ -183,6 +201,9 @@ The final investigation report remains a structured JSON object with these main 
 - `confidence`
 - `recommended_actions`
 - `caveats`
+- `source_attribution`
+
+Terminal cases keep the same structured report shape, but the evidence trail is shorter and ATT&CK mappings may be empty.
 
 ## Notes
 
@@ -191,3 +212,12 @@ The final investigation report remains a structured JSON object with these main 
 - Threat-intelligence API fallback is surfaced through `fallback_notes` and `errors`.
 - DNS resolution failures are recorded and the workflow continues with the remaining enrichment that is still possible.
 - The Critic agent can request one revision pass when the draft is low-confidence or contains unsupported claims.
+- The evaluation harness now supports per-metric scripted scoring and explicit `expected_stop_reason` checks.
+- The Streamlit sample selector now exposes all JSON files in `data/sample_alerts` across the supported input modes.
+- The evaluation summary CSVs now include workflow-efficiency columns such as API calls, DNS calls, agent executions, and revision count.
+
+## Milestone Status
+
+- Milestone I: architecture, design document, and multi-agent workflow completed.
+- Milestone II: evaluation harness, benchmark cases, judge subset, and stop-reason-aware scripted scoring completed.
+- Milestone III: demo-oriented Streamlit UI is in place and shows the full investigation flow, though further visual polish is still possible.

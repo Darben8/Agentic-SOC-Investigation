@@ -21,13 +21,24 @@ def load_sample_files() -> dict[str, str]:
 
 
 def sample_names_for_mode(samples: dict[str, str], input_mode: str) -> list[str]:
-    mode_map = {
-        "Normalized Alert JSON": {"bruteforce.json", "port_scan.json", "suspicious_url.json"},
-        "Raw Log Export": {"raw_splunk_ufw.json"},
-        "Suspicious URL": {"url_input.json"},
-        "Manual Observation": {"manual_observation.json"},
-    }
-    return ["None"] + sorted(name for name in samples if name in mode_map.get(input_mode, set()))
+    # Keep the selector simple for demos: every sample file is available in every mode.
+    return ["None"] + sorted(samples)
+
+
+def sample_value_for_mode(sample_text: str, input_mode: str) -> str:
+    if input_mode in {"Normalized Alert JSON", "Raw Log Export"}:
+        return sample_text
+
+    try:
+        sample_data = parse_json_input(sample_text)
+    except ValueError:
+        return sample_text
+
+    if isinstance(sample_data, dict):
+        for key in ("value", "url", "input", "raw_input", "observation"):
+            if key in sample_data and isinstance(sample_data[key], str):
+                return sample_data[key]
+    return sample_text
 
 
 def parse_json_input(raw_text: str) -> dict | list:
@@ -69,7 +80,7 @@ def main() -> None:
         raw_input_text = st.text_input(
             "Enter a suspicious URL",
             value=(
-                parse_json_input(samples[selected_sample])["value"]
+                sample_value_for_mode(samples[selected_sample], input_mode)
                 if selected_sample != "None"
                 else "http://rnicrosoft-support.human-resources.services"
             ),
@@ -79,7 +90,7 @@ def main() -> None:
         raw_input_text = st.text_area(
             "Enter a manual analyst observation",
             value=(
-                parse_json_input(samples[selected_sample])["value"]
+                sample_value_for_mode(samples[selected_sample], input_mode)
                 if selected_sample != "None"
                 else "Multiple connections across ports from 192.168.56.40 to 192.168.56.11 were blocked by UFW."
             ),
@@ -119,6 +130,10 @@ def main() -> None:
         return
 
     st.subheader("Final Investigation Report")
+    top_cols = st.columns(3)
+    top_cols[0].metric("Route Decision", result.route_decision or "unknown")
+    top_cols[1].metric("Stop Reason", result.stop_reason or "none")
+    top_cols[2].metric("Revision Count", result.revision_count)
     st.json(
         result.final_report.model_dump() if hasattr(result.final_report, "model_dump") else result.final_report,
         expanded=True,
