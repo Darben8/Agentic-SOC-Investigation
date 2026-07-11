@@ -1,4 +1,4 @@
 {
   "input_type": "manual_observation",
-  "value": "Multiple connections across ports from 192.168.56.40 to 192.168.56.11 were blocked by UFW within a short time window."
+  "value": "Multiple connections across ports 0, 21, 22, 53, 80, 443, 587, and 8080 from 91.196.152.209 to 192.168.56.11 were blocked by UFW within a short time window."
 }

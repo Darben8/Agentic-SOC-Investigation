@@ -52,6 +52,10 @@ MALFORMED_INPUT_MARKERS = {
 }
 
 RECON_MARKERS = {"recon", "scan", "port", "service discovery"}
+STOP_REASON_BENIGN = "benign_allowlisted"
+STOP_REASON_PROMPT_INJECTION = "adversarial_input_detected"
+STOP_REASON_MALFORMED = "malformed_or_incomplete_input"
+STOP_REASON_INSUFFICIENT = "insufficient_evidence"
 
 
 def _is_private_ip(value: str) -> bool:
@@ -65,6 +69,10 @@ def _contains_any(text: str, markers: set[str]) -> bool:
     return any(marker in text for marker in markers)
 
 
+def _has_usable_indicators(entities: Entities) -> bool:
+    return bool(entities.ips or entities.urls or entities.domains or entities.users or entities.hosts or entities.ports)
+
+
 def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
     alert_type = str(alert.get("alert_type", "")).lower()
     alert_name = str(alert.get("alert_name", "")).lower()
@@ -72,24 +80,13 @@ def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
     raw_input = str(alert.get("raw_input", "")).lower()
     combined_text = f"{alert_type} {alert_name} {summary} {raw_input}"
 
-    if alert_type in {
-        "brute_force",
-        "suspicious_url",
-        "external_reconnaissance",
-        "network_reconnaissance",
-        "internal_reconnaissance",
-        "reconnaissance",
-        "prompt_injection",
-        "benign_url",
-        "malformed_input",
-        "unknown",
-    }:
-        if alert_type == "network_reconnaissance":
-            return "external_reconnaissance"
-        return alert_type
-
     if _contains_any(combined_text, PROMPT_INJECTION_MARKERS):
         return "prompt_injection"
+
+    if alert_type in {"benign_url", "malformed_input", "internal_reconnaissance", "reconnaissance"}:
+        return alert_type
+    if alert_type == "network_reconnaissance":
+        return "external_reconnaissance"
 
     benign_hosts = {domain.lower() for domain in entities.domains}
     benign_hosts.update(str(alert.get(field, "")).lower() for field in ["domain", "url"])
@@ -100,23 +97,42 @@ def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
     ):
         return "benign_url"
 
+    if _contains_any(combined_text, MALFORMED_INPUT_MARKERS) and not (
+        entities.ips or entities.urls or entities.domains or entities.users or entities.hosts
+    ):
+        return "malformed_input"
+
     if _contains_any(combined_text, {"brute"}):
         return "brute_force"
 
     if "url" in alert_type or "phish" in alert_name or entities.urls:
         return "suspicious_url"
 
-    if _contains_any(combined_text, MALFORMED_INPUT_MARKERS) and not (
-        entities.ips or entities.urls or entities.domains or entities.users or entities.hosts
-    ):
-        return "malformed_input"
-
     if _contains_any(combined_text, RECON_MARKERS):
         if any(_is_private_ip(ip) for ip in entities.ips):
             return "internal_reconnaissance"
-        if "external" in combined_text:
+        if "external" in combined_text or "public" in combined_text:
             return "external_reconnaissance"
         return "reconnaissance"
+
+    if entities.urls and not entities.ips and not entities.domains:
+        return "suspicious_url"
+
+    if entities.ips and not entities.urls and not entities.domains:
+        if any(_is_private_ip(ip) for ip in entities.ips):
+            return "internal_reconnaissance"
+        if any(not _is_private_ip(ip) for ip in entities.ips):
+            return "external_reconnaissance"
+
+    if "failed login" in combined_text or "multiple login" in combined_text:
+        return "brute_force"
+
+    if "observe" in combined_text or "observed" in combined_text or "observation" in combined_text:
+        if entities.ips and len(entities.ips) >= 2:
+            return "reconnaissance"
+
+    if entities.users and entities.ips and "login" in combined_text:
+        return "brute_force"
 
     return "unknown"
 
@@ -129,7 +145,21 @@ def run_planner(state: InvestigationState) -> dict[str, Any]:
     entities = extract_entities(alert)
     alert_type = _classify_alert(alert, entities)
     route_decision = "threat_intel" if entities.ips or entities.urls or entities.domains else "investigator"
+    stop_reason = ""
     errors = list(state.errors)
+
+    if alert_type == "benign_url":
+        stop_reason = STOP_REASON_BENIGN
+        route_decision = "end"
+    elif alert_type == "prompt_injection":
+        stop_reason = STOP_REASON_PROMPT_INJECTION
+        route_decision = "end"
+    elif alert_type == "malformed_input":
+        stop_reason = STOP_REASON_MALFORMED
+        route_decision = "end"
+    elif alert_type == "unknown" and not _has_usable_indicators(entities):
+        stop_reason = STOP_REASON_INSUFFICIENT
+        route_decision = "end"
 
     fallback = {
         "alert_summary": f"Investigate {alert.get('alert_name', 'security alert')} classified as {alert_type}.",
@@ -187,6 +217,7 @@ def run_planner(state: InvestigationState) -> dict[str, Any]:
         "entities": entities,
         "investigation_plan": plan,
         "route_decision": route_decision,
+        "stop_reason": stop_reason,
         "errors": errors,
         "audit_log": audit_log,
         "policy_violations": policy_violations,
@@ -195,5 +226,6 @@ def run_planner(state: InvestigationState) -> dict[str, Any]:
             "entities": entities.model_dump(),
             "plan": plan.model_dump(),
             "route_decision": route_decision,
+            "stop_reason": stop_reason,
         },
     }

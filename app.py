@@ -71,7 +71,7 @@ def main() -> None:
             value=(
                 parse_json_input(samples[selected_sample])["value"]
                 if selected_sample != "None"
-                else "http://billing-check-login.example-malware.test/verify"
+                else "http://rnicrosoft-support.human-resources.services"
             ),
         )
     else:
@@ -140,6 +140,7 @@ def main() -> None:
         ),
         ("Fallback Notes", result.fallback_notes),
         ("Errors", result.errors),
+        ("Policy Violations", result.policy_violations),
         (
             "Revision Loop Results",
             {
@@ -148,6 +149,9 @@ def main() -> None:
                 "revision_history": result.revision_history,
             },
         ),
+        ("Source Attribution", result.source_attribution),
+        ("Validation Results", result.validation_results),
+        ("Audit Log", result.audit_log),
     ]
 
     for title, payload in sections:

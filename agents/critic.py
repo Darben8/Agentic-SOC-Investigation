@@ -66,6 +66,11 @@ def run_critic(state: InvestigationState) -> dict[str, Any]:
         revision_history.append(revision_note)
         feedback.verification_notes.append(revision_note)
         final_report.caveats.append("A revision pass was requested before finalizing the report.")
+
+    stop_reason = ""
+    if not needs_revision:
+        stop_reason = "investigation_complete_with_limitations" if final_report.confidence < 0.5 else "investigation_complete"
+
     audit_log.append(
         make_audit_entry(
             agent_id="critic",
@@ -84,6 +89,7 @@ def run_critic(state: InvestigationState) -> dict[str, Any]:
         "final_report": final_report,
         "needs_revision": needs_revision,
         "revision_history": revision_history,
+        "stop_reason": stop_reason,
         "audit_log": audit_log,
         "policy_violations": policy_violations,
     }

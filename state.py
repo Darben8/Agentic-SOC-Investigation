@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-AlertType = Literal["brute_force", "suspicious_url", "external_reconnaissance", "internal_reconnaissance", "reconnaissance", "prompt_injection", "benign_url", "malformed_input", "unknown"]
+AlertType = Literal["brute_force", "suspicious_url", "network_reconnaissance", "external_reconnaissance", "internal_reconnaissance", "reconnaissance", "prompt_injection", "benign_url", "malformed_input", "unknown"]
 SeverityLevel = Literal["low", "medium", "high", "critical"]
 
 
@@ -96,6 +96,7 @@ class InvestigationState(BaseModel):
     policy_violations: list[str] = Field(default_factory=list)
     source_attribution: list[dict[str, Any]] = Field(default_factory=list)
     route_decision: str = "planner"
+    stop_reason: str = ""
     needs_revision: bool = False
     revision_count: int = 0
     max_revisions: int = 1
