@@ -1,0 +1,107 @@
+{
+  "case_id": "obs_001",
+  "expected": {
+    "classification": "internal_reconnaissance",
+    "severity_range": [
+      "medium",
+      "high",
+      "critical"
+    ],
+    "attack_ids": [
+      "T1595.001",
+      "T1046"
+    ],
+    "must_not_claim": [
+      "confirmed compromise"
+    ]
+  },
+  "final_report": {
+    "summary": "### SOC Investigation Summary\n\n**Alert Overview:**  \n- **Alert Name:** Manual Analyst Observation  \n- **Alert Type:** Unknown  \n- **Severity:** Low  \n- **Source:** Manual Observation  \n- **Timestamp:** Not provided  \n\n**Details:**  \nA manual observation flagged multiple connection attempts from the IP address **91.196.152.209** to **192.168.56.11** across various ports (0, 21, 22, 53, 80, 443, 587, and 8080). These attempts were blocked by Uncomplicated Firewall (UFW) within a short time frame. This incident raised concerns as it involves multiple ports which could indicate potential reconnaissance or probing activity.\n\n**Threat Intelligence Findings:**  \n- The IP address **91.196.152.209** has a reputation for being malicious, with a confidence level of 95%. Sources such as **AbuseIPDB** and **VirusTotal** report a total of 11 malicious detections.\n- According to VirusTotal, the last analysis shows:\n  - Malicious: 11\n  - Suspicious: 3\n  - Harmless: 46\n  - Undetected: 31\n- AbuseIPDB assigned a confidence score of 100, indicating high reliability of the malicious classification.\n\n**Risk Assessment:**  \n- **Severity Level:** Medium  \n- **Confidence Level:** 66%  \n- **Risk Score:** 58  \n- **Rationale:** The risk is attributed to the combined factors of internal reconnaissance activities and the confirmed malicious status of the indicator. Corresponding ATT&CK mappings further enhance the behavioral confidence in the associated threat.\n\n**Conclusion:**  \nThe investigation indicates a high likelihood of an attempted reconnaissance attack originating from **91.196.152.209**. Although the initial observation severity is classified as low due to UFW blocking the traffic, the malicious reputation of the source IP and the nature of the connections warrant ongoing monitoring and potential additional security measures to mitigate risks. Further analysis of traffic patterns and investigation of other connections from this IP should be pursued.",
+    "likely_behavior": "The activity resembles internal discovery or lateral probing within a trusted network segment.",
+    "evidence": [
+      "Alert source: Manual Observation",
+      "Alert name: Manual Analyst Observation",
+      "Indicators extracted: 2 IP(s), 0 URL(s), 0 domain(s).",
+      "Fallback note: Skipped enrichment for private/internal IP 192.168.56.11.",
+      "91.196.152.209 (ip, original) reputation: malicious with confidence 0.95."
+    ],
+    "attack_mapping": [
+      {
+        "tactic": "Discovery",
+        "technique_id": "T1018",
+        "technique_name": "Remote System Discovery",
+        "rationale": "Internal host or service probing suggests discovery within the internal network."
+      },
+      {
+        "tactic": "Infrastructure",
+        "technique_id": "T1583",
+        "technique_name": "Acquire Infrastructure",
+        "rationale": "Malicious indicator reputation suggests possible adversary-controlled or abused infrastructure, but available evidence does not confirm command-and-control activity."
+      }
+    ],
+    "severity": "medium",
+    "confidence": 0.66,
+    "recommendations": [
+      "Preserve the alert, related logs, and host or firewall telemetry for follow-up review.",
+      "Block or monitor suspicious indicators at the firewall, proxy, or endpoint controls as appropriate.",
+      "Validate whether the impacted user or host shows additional signs of compromise.",
+      "Review internal segmentation, asset inventory, and adjacent host telemetry for discovery activity."
+    ],
+    "caveats": [
+      "Confidence is reduced when enrichment data or original telemetry is limited.",
+      "Skipped enrichment for private/internal IP 192.168.56.11."
+    ],
+    "source_attribution": [
+      {
+        "source_type": "normalized_alert",
+        "source_name": "Manual Observation",
+        "description": "Manual Analyst Observation"
+      },
+      {
+        "source_type": "threat_intel",
+        "indicator": "91.196.152.209",
+        "indicator_type": "ip",
+        "providers": [
+          "AbuseIPDB",
+          "VirusTotal"
+        ],
+        "provenance": "original"
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1018",
+        "technique_name": "Remote System Discovery",
+        "rationale": "Internal host or service probing suggests discovery within the internal network."
+      },
+      {
+        "source_type": "attack_mapping",
+        "technique_id": "T1583",
+        "technique_name": "Acquire Infrastructure",
+        "rationale": "Malicious indicator reputation suggests possible adversary-controlled or abused infrastructure, but available evidence does not confirm command-and-control activity."
+      },
+      {
+        "source_type": "risk_score",
+        "severity": "medium",
+        "confidence": 0.66,
+        "score": 58,
+        "rationale": [
+          "Base alert-type weight applied for internal_reconnaissance.",
+          "1 indicator(s) were rated malicious.",
+          "Multiple ATT&CK mappings support stronger behavioral confidence."
+        ]
+      }
+    ]
+  },
+  "critic_feedback": {
+    "unsupported_claims": [],
+    "uncertainty_flags": [],
+    "downgraded_conclusions": [],
+    "verification_notes": [
+      "**Verification Note:**\n\nThe investigation report accurately identifies a potential reconnaissance attempt from IP address **91.196.152.209** based on its history of malicious activity, confirmed by sources like AbuseIPDB and VirusTotal. The recommendations for ongoing monitoring and precautionary measures are aligned with best practices for handling identified threats. The assessment of risk and the related ATT&CK mappings provide a comprehensive view of the situation. Overall, the report is complete and well-structured."
+    ]
+  },
+  "revision": {
+    "revision_count": 0,
+    "revision_history": []
+  }
+}
