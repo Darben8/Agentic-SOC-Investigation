@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from agents.llm_utils import generate_text
@@ -25,13 +26,90 @@ def _behavior_summary(alert_type: str) -> str:
     return mapping.get(alert_type, mapping["unknown"])
 
 
+def _deterministic_summary(alert: dict[str, Any], alert_type: str) -> str:
+    source_ip = alert.get("src_ip")
+    destination_ip = alert.get("dst_ip")
+    protocol = alert.get("protocol")
+    source_name = alert.get("source", "the monitoring system")
+    event_count = alert.get("event_count")
+    action = alert.get("action")
+    ports = alert.get("destination_ports") or []
+    unique_port_count = len(ports) if isinstance(ports, list) else None
+    alert_name = alert.get("alert_name", "The alert")
+    alert_type_text = alert_type.replace("_", " ")
+
+    if isinstance(ports, list) and ports:
+        port_values = [str(port) for port in ports[:7]]
+        port_text = ", ".join(port_values)
+        if len(ports) > 7:
+            port_text += ", and others"
+    else:
+        port_text = ""
+
+    sentence_one_parts: list[str] = []
+    if source_ip and destination_ip:
+        sentence_one_parts.append(f"{source_ip} attempted connections to {destination_ip}")
+    elif source_ip:
+        sentence_one_parts.append(f"Activity was observed from {source_ip}")
+    else:
+        sentence_one_parts.append(f"{alert_name} was observed")
+
+    if unique_port_count:
+        sentence_one_parts.append(f"across {unique_port_count} port{'s' if unique_port_count != 1 else ''}")
+    if protocol:
+        sentence_one_parts.append(f"using {protocol}")
+    if event_count:
+        sentence_one_parts.append(f"with {event_count} related event{'s' if event_count != 1 else ''}")
+
+    summary_sentences = [f"{' '.join(sentence_one_parts)}."]
+
+    if port_text:
+        summary_sentences.append(f"The targeted ports included {port_text}.")
+
+    if action:
+        summary_sentences.append(f"All observed activity was {str(action).lower()} by {source_name}.")
+    else:
+        summary_sentences.append(f"The activity was detected by {source_name}.")
+
+    summary_sentences.append(f"The pattern is consistent with {alert_type_text} activity and warrants analyst review.")
+    return " ".join(summary_sentences[:4])
+
+
+def _summary_looks_invalid(summary: str) -> bool:
+    if not summary.strip():
+        return True
+
+    invalid_patterns = [
+        r"(?i)\bAlert Overview\s*:",
+        r"(?i)\bAlert Name\s*:",
+        r"(?i)\bSource IP\s*:",
+        r"(?i)\bSeverity\s*:",
+        r"(?i)\bRisk Assessment\s*:",
+        r"\*\*",
+        r"(?i)\bPriority\s*:",
+        r"(?i)\bConfidence Level\s*:",
+    ]
+    if any(re.search(pattern, summary) for pattern in invalid_patterns):
+        return True
+
+    if len(re.findall(r"\b[\w /-]+\s*:\s*", summary)) >= 3:
+        return True
+
+    sentence_count = len(re.findall(r"[.!?](?:\s|$)", summary))
+    if sentence_count < 2:
+        return True
+
+    return False
+
+
 def run_investigator(state: InvestigationState) -> dict[str, Any]:
     audit_log = list(state.audit_log)
     policy_violations = list(state.policy_violations)
     source_attribution = list(state.source_attribution)
     enforce_tool_access("investigator", "InvestigationAgent", "tools/attack_mapper.py", audit_log, policy_violations)
     enforce_tool_access("investigator", "InvestigationAgent", "tools/risk_score.py", audit_log, policy_violations)
-    alert = state.normalized_alert or state.raw_alert
+    alert = dict(state.normalized_alert or state.raw_alert)
+    alert["alert_type"] = state.alert_type
     behavior = _behavior_summary(state.alert_type)
     attack_mapping = map_attack_techniques(state.alert_type, alert, state.threat_intel_results)
     risk = score_risk(state.alert_type, alert, state.threat_intel_results, attack_mapping)
@@ -77,17 +155,20 @@ def run_investigator(state: InvestigationState) -> dict[str, Any]:
     elif state.alert_type == "external_reconnaissance":
         recommendations.append("Review source IP activity across adjacent hosts to determine scanning breadth and persistence.")
 
-    fallback_summary = (
-        f"{alert.get('alert_name', 'The alert')} was assessed as {state.alert_type}. "
-        f"Current severity is {risk.severity} with analyst confidence {risk.confidence:.2f}."
-    )
+    fallback_summary = _deterministic_summary(alert, state.alert_type)
     enforce_tool_access("investigator", "InvestigationAgent", "agents/llm_utils.py", audit_log, policy_violations)
     executive_summary = generate_text(
         (
-            "Write a short SOC investigation summary using the following facts:\n"
+            "Write a concise SOC investigation summary in 2-4 complete prose sentences using the following facts.\n"
+            "Use narrative prose only.\n"
+            "Do not use key:value fields, section labels, bullets, markdown, bold markers, or placeholder text.\n"
+            "Do not include risk scoring language such as severity, priority, confidence level, risk score, likelihood, or potential impact.\n"
+            "Do not fabricate, infer, or introduce any date or time.\n"
+            "If no timestamp is explicitly present in the provided alert facts, do not mention a date, time, timeline marker, or placeholder such as [date] or [insert date and time].\n"
+            "Use the final classified alert_type from the provided alert facts.\n"
             f"Alert: {alert}\n"
             f"Threat intel: {[item.model_dump() for item in state.threat_intel_results]}\n"
-            f"Risk: {risk.model_dump()}\n"
+            "Ignore risk scoring details for the summary body.\n"
         ),
         fallback_summary,
         audit_log=audit_log,
@@ -95,6 +176,8 @@ def run_investigator(state: InvestigationState) -> dict[str, Any]:
         agent_name="InvestigationAgent",
         action="llm_summary_generation",
     )
+    if _summary_looks_invalid(executive_summary):
+        executive_summary = fallback_summary
 
     source_attribution.append(
         {
@@ -126,6 +209,11 @@ def run_investigator(state: InvestigationState) -> dict[str, Any]:
         {
             "source_type": "risk_score",
             "severity": risk.severity,
+            "priority": risk.priority,
+            "priority_score": risk.priority_score,
+            "likelihood_malicious": risk.likelihood_malicious,
+            "potential_impact": risk.potential_impact,
+            "evidence_confidence": risk.evidence_confidence,
             "confidence": risk.confidence,
             "score": risk.score,
             "rationale": risk.rationale,

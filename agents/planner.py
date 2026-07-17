@@ -79,14 +79,17 @@ def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
     summary = str(alert.get("raw_event_summary", "")).lower()
     raw_input = str(alert.get("raw_input", "")).lower()
     combined_text = f"{alert_type} {alert_name} {summary} {raw_input}"
+    src_ip = str(alert.get("src_ip", "")).strip()
+    dst_ip = str(alert.get("dst_ip", "")).strip()
+    src_is_private = _is_private_ip(src_ip)
+    dst_is_private = _is_private_ip(dst_ip)
+    src_is_public = bool(src_ip) and not src_is_private
 
     if _contains_any(combined_text, PROMPT_INJECTION_MARKERS):
         return "prompt_injection"
 
-    if alert_type in {"benign_url", "malformed_input", "internal_reconnaissance", "reconnaissance"}:
+    if alert_type in {"benign_url", "malformed_input", "internal_reconnaissance", "external_reconnaissance", "reconnaissance"}:
         return alert_type
-    if alert_type == "network_reconnaissance":
-        return "external_reconnaissance"
 
     benign_hosts = {domain.lower() for domain in entities.domains}
     benign_hosts.update(str(alert.get(field, "")).lower() for field in ["domain", "url"])
@@ -109,7 +112,9 @@ def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
         return "suspicious_url"
 
     if _contains_any(combined_text, RECON_MARKERS):
-        if any(_is_private_ip(ip) for ip in entities.ips):
+        if src_is_public:
+            return "external_reconnaissance"
+        if src_ip and dst_ip and src_is_private and dst_is_private:
             return "internal_reconnaissance"
         if "external" in combined_text or "public" in combined_text:
             return "external_reconnaissance"
@@ -119,7 +124,9 @@ def _classify_alert(alert: dict[str, Any], entities: Entities) -> str:
         return "suspicious_url"
 
     if entities.ips and not entities.urls and not entities.domains:
-        if any(_is_private_ip(ip) for ip in entities.ips):
+        if src_is_public:
+            return "external_reconnaissance"
+        if src_ip and dst_ip and src_is_private and dst_is_private:
             return "internal_reconnaissance"
         if any(not _is_private_ip(ip) for ip in entities.ips):
             return "external_reconnaissance"
