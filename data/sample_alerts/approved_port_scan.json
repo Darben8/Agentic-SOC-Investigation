@@ -1,0 +1,26 @@
+{
+    "alert_name": "Multiple Ports Contacted",
+    "alert_type": "internal_reconnaissance",
+    "source": "SIEM",
+    "severity": "medium",
+    "timestamp": "2026-07-01T11:30:00Z",
+    "src_ip": "192.168.56.50",
+    "dst_ip": "192.168.56.0/24",
+    "protocol": "TCP",
+    "event_count": 400,
+    "unique_destination_ports": 100,
+    "destination_ports": [
+        22,
+        80,
+        443,
+        445,
+        3389,
+        8080
+    ],
+    "metadata": {
+        "source_asset_name": "nessus-scanner",
+        "source_asset_role": "authorized vulnerability scanner",
+        "scan_window": "approved maintenance window",
+        "change_ticket": "CHG-2026-071"
+    }
+    }
