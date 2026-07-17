@@ -4,6 +4,7 @@ import html
 import json
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,11 @@ def format_classification(alert_type: str) -> str:
 def clean_markdown_text(value: Any) -> str:
     text = str(value or "").replace("\\n", "\n")
     text = text.replace("[date]", "").replace("(date)", "")
+    text = re.sub(r"(?i)\[\s*insert\s+date(?:\s+and\s+time)?\s*\]", "", text)
+    text = re.sub(r"(?i)\[\s*insert\s+timestamp\s*\]", "", text)
+    text = re.sub(r"(?i)\[\s*insert\s+time\s*\]", "", text)
+    text = re.sub(r"(?i)\bon\s*\[\s*insert\s+date(?:\s+and\s+time)?\s*\],?\s*", "", text)
+    text = re.sub(r"(?i)\bon\s*\[\s*date(?:\s+and\s+time)?\s*\],?\s*", "", text)
     text = re.sub(r"(?im)^\s*#{1,6}\s*", "", text)
     text = re.sub(r"(?im)^\s*(SOC Investigation Summary:?|Alert Overview:?|Incident Overview:?|Details:?|Event Summary:)\s*$", "", text)
     text = re.sub(r"(?im)^\s*[-*•]\s+", "", text)
@@ -131,6 +137,146 @@ def extract_summary_facts_and_prose(summary_text: str) -> tuple[list[tuple[str, 
         unique_facts.append((label, value))
 
     return unique_facts, prose
+
+
+def extract_risk_assessment_from_summary(summary_text: str) -> tuple[str, dict[str, str]]:
+    risk_labels = [
+        "Severity",
+        "Confidence Level",
+        "Risk Score",
+        "Priority",
+        "Likelihood of Malicious Activity",
+        "Potential Impact",
+        "Potential Impact Score",
+        "Rationale for Risk Assessment",
+    ]
+    risk_pattern = "|".join(re.escape(label) for label in risk_labels)
+    risk_block_match = re.search(
+        rf"(?is)(?:\bRisk Assessment\s*:?\s*)?((?:(?:{risk_pattern})\s*:\s*.*(?:\n|$))+)",
+        summary_text,
+    )
+
+    extracted: dict[str, str] = {}
+    cleaned_summary = summary_text
+    if risk_block_match:
+        risk_block = risk_block_match.group(1)
+        for line in risk_block.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            match = re.match(rf"^(?P<label>{risk_pattern})\s*:\s*(?P<value>.+)$", line, flags=re.IGNORECASE)
+            if not match:
+                continue
+            label = match.group("label").strip()
+            value = match.group("value").strip()
+            extracted[label.lower()] = value
+
+        cleaned_summary = (summary_text[: risk_block_match.start()] + summary_text[risk_block_match.end() :]).strip()
+
+    cleaned_summary = re.sub(r"(?im)\bRisk Assessment\s*:?\s*$", "", cleaned_summary)
+    cleaned_summary = re.sub(r"\n{3,}", "\n\n", cleaned_summary).strip()
+    return cleaned_summary, extracted
+
+
+def strip_non_narrative_summary_content(summary_text: str) -> str:
+    cleaned = summary_text
+    cleaned, _ = extract_risk_assessment_from_summary(cleaned)
+    cleaned = re.sub(r"(?i)\bAlert Overview\s*:\s*", "", cleaned)
+    cleaned = re.sub(
+        r"(?im)^(?:Alert Name|Alert Type|Severity|Severity Level|Source|Source Type|Action Taken|Source IP|Destination IP|Protocol|Action|Event Count|Unique Destination Ports|Destination Ports Involved|Summary of Events|Threat Assessment)\s*:\s*.*$",
+        "",
+        cleaned,
+    )
+    cleaned = cleaned.replace("**", "")
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip(" \n\r\t:;-")
+    return cleaned
+
+
+def format_risk_rationale(risk_payload: dict[str, Any], severity: str, priority: str) -> str:
+    rationale = risk_payload.get("rationale", {}) if isinstance(risk_payload, dict) else {}
+    behavioral = rationale.get("behavioral_signals", []) if isinstance(rationale, dict) else []
+    intel = rationale.get("intel_signals", []) if isinstance(rationale, dict) else []
+    context = rationale.get("context_signals", []) if isinstance(rationale, dict) else []
+
+    sentences: list[str] = []
+    severity_text = str(severity).lower()
+    priority_text = str(priority).lower()
+
+    if behavioral:
+        behavior_text = " ".join(str(item).strip() for item in behavioral[:2] if str(item).strip()).lower()
+        if "broad port targeting" in behavior_text:
+            sentences.append(
+                f"{str(priority).title()}-priority {severity_text}-severity alerts like this carry elevated concern because broad port targeting increases the likelihood of malicious reconnaissance."
+            )
+        elif "prompt-injection" in behavior_text or "prompt injection" in behavior_text:
+            sentences.append(
+                f"{str(priority).title()}-priority {severity_text}-severity handling is appropriate because the input showed signs of deliberate adversarial manipulation."
+            )
+        else:
+            sentences.append(
+                f"The observed activity pattern increased concern that the alert reflects potentially malicious behavior."
+            )
+
+    if intel:
+        intel_text = " ".join(str(item).strip() for item in intel if str(item).strip()).lower()
+        malicious_match = re.search(r"(\d+)\s+indicator\(s\)\s+were rated malicious", intel_text)
+        suspicious_match = re.search(r"(\d+)\s+indicator\(s\)\s+were rated suspicious", intel_text)
+        if malicious_match:
+            count = malicious_match.group(1)
+            sentences.append(
+                f"{count} indicator{' was' if count == '1' else 's were'} confirmed malicious by threat-intelligence enrichment."
+            )
+        elif suspicious_match:
+            count = suspicious_match.group(1)
+            sentences.append(
+                f"{count} indicator{' was' if count == '1' else 's were'} flagged as suspicious by threat-intelligence enrichment."
+            )
+
+    if context:
+        context_text = " ".join(str(item).strip() for item in context if str(item).strip()).lower()
+        if "private-network-only scope" in context_text:
+            sentences.append(
+                "Because the activity stayed within private network space, the surrounding context slightly lowers the likelihood of immediate external compromise."
+            )
+        elif "approved scanner context" in context_text or "allowlisted" in context_text:
+            sentences.append(
+                "Known benign or approved-scanner context reduces the likelihood that this activity is malicious."
+            )
+        elif "observed activity scale increased potential impact" in context_text:
+            sentences.append(
+                "The number and spread of observed events increased the potential impact if the activity were part of a broader intrusion."
+            )
+
+    if not sentences:
+        return "The available evidence supports the current risk score, priority, and severity assessment."
+
+    return " ".join(sentences[:3])
+
+
+def build_risk_assessment_display(
+    risk_payload: dict[str, Any],
+    risk_score: int | None,
+    priority: str,
+    severity: str,
+    confidence: Any,
+) -> tuple[list[tuple[str, str]], str]:
+    confidence_value = f"{round(float(confidence) * 100)}%" if isinstance(confidence, (int, float)) else str(confidence)
+    items = [
+        ("Severity", str(severity).title()),
+        ("Confidence level", confidence_value),
+        ("Risk score", f"{risk_score} / 100" if risk_score is not None else "Not scored"),
+        ("Priority", str(priority).title()),
+        (
+            "Likelihood of Malicious Activity",
+            str(risk_payload.get("likelihood_malicious", "Not available")),
+        ),
+        (
+            "Potential Impact",
+            str(risk_payload.get("potential_impact", "Not available")),
+        ),
+    ]
+
+    return items, format_risk_rationale(risk_payload, severity, priority)
 
 
 def format_title(final_report: dict[str, Any], normalized_alert: dict[str, Any], raw_input_type: str) -> str:
@@ -192,6 +338,29 @@ def summarize_audit_log(items: list[dict[str, Any]]) -> list[str]:
         f"{item.get('agent_name', item.get('agent_id', 'Agent'))}: {item.get('action', 'action').replace('_', ' ')}"
         for item in items[:8]
     ]
+
+
+def summarize_risk_factors(risk_payload: dict[str, Any]) -> list[str]:
+    rationale = risk_payload.get("rationale", {}) if isinstance(risk_payload, dict) else {}
+    sections = [
+        ("behavioral_signals", "Behavior"),
+        ("intel_signals", "Threat intelligence"),
+        ("context_signals", "Context"),
+        ("confidence_boosters", "Confidence boost"),
+        ("confidence_penalties", "Confidence limitation"),
+    ]
+    lines: list[str] = []
+    for key, prefix in sections:
+        values = rationale.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for value in values[:2]:
+            cleaned = str(value).strip()
+            if cleaned:
+                lines.append(f"{prefix}: {cleaned}")
+        if len(lines) >= 6:
+            break
+    return lines[:6]
 
 
 def inject_app_css() -> None:
@@ -347,6 +516,31 @@ def inject_app_css() -> None:
 
         .metric-badge-wrap {
             margin-top: 0.2rem;
+        }
+
+        .report-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .report-summary-item {
+            min-width: 0;
+        }
+
+        .report-summary-label {
+            color: var(--soc-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .report-summary-value {
+            color: var(--soc-text);
+            font-size: 1.2rem;
+            font-weight: 500;
+            line-height: 1.15;
+            word-break: break-word;
         }
 
         .st-key-input_mode_normalized button,
@@ -580,6 +774,7 @@ def main() -> None:
     stored_mode = st.session_state.get("last_input_mode")
     stored_raw_text = st.session_state.get("last_raw_input_text")
     stored_runtime = st.session_state.get("last_runtime_seconds")
+    stored_run_at = st.session_state.get("last_run_at_display")
     result = None
 
     if st.session_state.get("run_requested"):
@@ -627,6 +822,7 @@ def main() -> None:
             st.session_state["last_input_mode"] = input_mode
             st.session_state["last_raw_input_text"] = raw_input_text
             st.session_state["last_runtime_seconds"] = runtime_seconds
+            st.session_state["last_run_at_display"] = datetime.now().strftime("%B %d, %Y %I:%M %p")
             st.session_state["status_label"] = "The Agentic SOC Copilot has completed your request."
             st.session_state["status_state"] = "complete"
             st.session_state["investigation_running"] = False
@@ -653,10 +849,28 @@ def main() -> None:
         return
 
     st.subheader("Final Investigation Report")
-    top_cols = st.columns(3)
-    top_cols[0].metric("Classified As", format_classification(result.alert_type))
-    top_cols[1].metric("Status", format_status(result.stop_reason))
-    top_cols[2].metric("Review Passes", result.revision_count + 1 if result.revision_count >= 0 else 1)
+    classified_as = html.escape(format_classification(result.alert_type))
+    report_status = html.escape(format_status(result.stop_reason))
+    review_passes = result.revision_count + 1 if result.revision_count >= 0 else 1
+    st.markdown(
+        f"""
+        <div class="report-summary-grid">
+            <div class="report-summary-item">
+                <div class="report-summary-label">Classified As</div>
+                <div class="report-summary-value">{classified_as}</div>
+            </div>
+            <div class="report-summary-item">
+                <div class="report-summary-label">Status</div>
+                <div class="report-summary-value">{report_status}</div>
+            </div>
+            <div class="report-summary-item">
+                <div class="report-summary-label">Review Passes</div>
+                <div class="report-summary-value">{review_passes}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     final_report = result.final_report.model_dump() if hasattr(result.final_report, "model_dump") else result.final_report
     severity = final_report.get("severity", result.severity or "unknown")
@@ -669,6 +883,7 @@ def main() -> None:
     risk_score = resolve_risk_score(result, final_report)
     priority = risk_payload.get("priority", severity)
     runtime_seconds = stored_runtime
+    run_at_display = stored_run_at
     display_title = format_title(final_report, result.normalized_alert, result.raw_input_type)
 
     if view_mode == "Analyst View":
@@ -705,25 +920,28 @@ def main() -> None:
 
         st.markdown("### Summary")
         summary_text = clean_markdown_text(final_report.get("executive_summary", ""))
-        summary_facts, summary_prose = extract_summary_facts_and_prose(summary_text)
-        if summary_facts:
-            fact_columns = st.columns(min(4, len(summary_facts)))
-            for index, (label, value) in enumerate(summary_facts[:4]):
-                with fact_columns[index]:
-                    render_metric_card(label, value, small=True)
-            if len(summary_facts) > 4:
-                extra_fact_columns = st.columns(min(4, len(summary_facts) - 4))
-                for index, (label, value) in enumerate(summary_facts[4:8]):
-                    with extra_fact_columns[index]:
-                        render_metric_card(label, value, small=True)
-        if summary_prose:
-            st.markdown(summary_prose)
-        elif summary_text:
+        summary_text = strip_non_narrative_summary_content(summary_text)
+        if summary_text:
             st.markdown(summary_text)
         else:
             st.write("No summary was generated.")
+        if run_at_display:
+            st.caption(f"Investigation run at {run_at_display}.")
         if isinstance(runtime_seconds, (int, float)):
             st.caption(f"Investigation completed in {float(runtime_seconds):.2f} seconds.")
+
+        st.markdown("### Risk assessment")
+        risk_items, risk_rationale = build_risk_assessment_display(
+            risk_payload,
+            risk_score,
+            priority,
+            severity,
+            confidence,
+        )
+        for label, value in risk_items:
+            st.markdown(f"**{label}:** {value}")
+        st.markdown("**Rationale for Risk Assessment:**")
+        st.write(risk_rationale)
 
         if recommended_actions:
             st.markdown("### Recommended actions")
