@@ -49,7 +49,20 @@ class RiskAssessment(BaseModel):
     severity: SeverityLevel = "low"
     confidence: float = 0.0
     score: int = 0
-    rationale: list[str] = Field(default_factory=list)
+    priority: SeverityLevel = "low"
+    priority_score: int = 0
+    likelihood_malicious: int = 0
+    potential_impact: int = 0
+    evidence_confidence: int = 0
+    rationale: dict[str, list[str]] = Field(
+        default_factory=lambda: {
+            "behavioral_signals": [],
+            "intel_signals": [],
+            "context_signals": [],
+            "confidence_boosters": [],
+            "confidence_penalties": [],
+        }
+    )
 
 
 class InvestigationReport(BaseModel):
