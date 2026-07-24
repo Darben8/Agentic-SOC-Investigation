@@ -268,11 +268,15 @@ def build_risk_assessment_display(
         ("Priority", str(priority).title()),
         (
             "Likelihood of Malicious Activity",
-            str(risk_payload.get("likelihood_malicious", "Not available")),
+            f"{risk_payload.get('likelihood_malicious')} / 100"
+            if isinstance(risk_payload.get("likelihood_malicious"), (int, float))
+            else "Not available",
         ),
         (
             "Potential Impact",
-            str(risk_payload.get("potential_impact", "Not available")),
+            f"{risk_payload.get('potential_impact')} / 100"
+            if isinstance(risk_payload.get("potential_impact"), (int, float))
+            else "Not available",
         ),
     ]
 

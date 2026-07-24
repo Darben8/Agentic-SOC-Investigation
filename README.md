@@ -1,20 +1,23 @@
 # SOC Investigation Copilot
 
-This project is a Python SOC investigation copilot built with LangGraph, Streamlit, Pydantic, and the OpenAI API. It accepts multiple input types, routes them through a deterministic input router and normalizer, runs a four-agent investigation workflow, and returns a validated structured investigation report with explicit routing and stop-reason handling.
+This project is a Python SOC investigation copilot built with LangGraph, Streamlit, Pydantic, and the OpenAI API. It accepts multiple input types, routes them through a deterministic validation and normalization layer, runs a multi-agent investigation workflow, and returns a structured investigation report with explicit routing, stop-reason handling, risk scoring, and audit-oriented traceability.
 
 ## Features
 
 - Multiple input modes: normalized alert JSON, raw log export, suspicious URL, and manual observation
-- Deterministic input router and normalizer before the agents run
+- Deterministic pre-router input validation, sanitization, and alert normalization
 - Sequential coordinator-based LangGraph workflow
 - Planner-driven routing to threat enrichment or direct investigation
 - Critic-to-investigator one-pass revision loop for low-confidence or unsupported drafts
-- IOC extraction, MITRE ATT&CK mapping, and risk scoring
+- IOC extraction, MITRE ATT&CK mapping, and multi-factor risk scoring
 - Deterministic URL/domain infrastructure expansion via hostname extraction and standard DNS resolution
 - VirusTotal and AbuseIPDB enrichment with local mock fallback when API keys are missing
 - Threat-intel provenance labels for original indicators and DNS-derived indicators
-- Streamlit UI with separate input modes and intermediate state views
-- Streamlit UI with route decision and stop reason display for demos
+- Separate severity and priority scoring so a case can be medium severity but high priority
+- Terminal-case handling for benign, malformed, prompt-injection, and insufficient-evidence inputs
+- Streamlit UI with multiple input modes, a persistent run-status experience, and separate analyst vs developer/audit views
+- Analyst-facing report layout with narrative summary, structured risk assessment, recommended actions, and ATT&CK mapping
+- Developer/audit view for raw state, source attribution, validation results, and pipeline outputs
 - Explicit stop-reason handling for benign, malformed, prompt-injection, and insufficient-evidence cases
 
 ## Project Structure
@@ -24,6 +27,7 @@ This project is a Python SOC investigation copilot built with LangGraph, Streaml
 |-- app.py
 |-- graph.py
 |-- state.py
+|-- UI_README.md
 |-- agents/
 |-- tools/
 |-- ingestion/
@@ -63,6 +67,37 @@ Start the Streamlit app:
 ```powershell
 .\venv\Scripts\python.exe -m streamlit run app.py
 ```
+
+## Evaluation
+
+Run the scripted benchmark locally:
+
+```powershell
+.\venv\Scripts\python.exe evaluations\run_evaluation.py
+```
+
+Run the benchmark with compact LLM-as-judge scoring:
+
+```powershell
+.\venv\Scripts\python.exe evaluations\run_evaluation.py --judge
+```
+
+Allow the evaluation run to use API-backed enrichment and judge calls when credentials are available:
+
+```powershell
+.\venv\Scripts\python.exe evaluations\run_evaluation.py --online
+```
+
+You can also combine the flags when you intentionally want both online enrichment and judge scoring:
+
+```powershell
+.\venv\Scripts\python.exe evaluations\run_evaluation.py --online --judge
+```
+
+Evaluation outputs are written under:
+
+- `evaluations/results/`
+- `evaluations/judge_payloads/`
 
 ## Input Modes
 
@@ -123,6 +158,7 @@ Example:
 
 ```text
 Raw Input
+-> Pre-router Validation & Sanitization
 -> Input Router & Normalizer
 -> Stop Reason Check
 -> Planner Agent
@@ -148,6 +184,25 @@ Supported values include:
 
 Benign URLs, malformed inputs, and prompt-injection inputs stop early. Normal malicious and reconnaissance cases continue through enrichment, analysis, and validation.
 
+## UI Overview
+
+The frontend is a Streamlit application designed as an investigation workspace rather than a simple form. Users can choose among four input modes, launch the workflow, and review the results in one of two presentation modes:
+
+- `Analyst View` emphasizes report readability, triage speed, and concise security conclusions.
+- `Developer / Audit View` preserves raw state, intermediate outputs, validation results, and audit detail for debugging and evaluation.
+
+The analyst-facing output is structured as a report with:
+
+- final classification, status, and review count
+- key metrics such as confidence, risk score, priority, severity, and status
+- a short narrative summary of the alert and findings
+- a separate risk assessment section with structured values and rationale
+- recommended actions
+- MITRE ATT&CK mapping
+- an advanced detail section for attribution, validation, caveats, and audit activity
+
+The UI also includes a persistent status block during execution, disables repeat submissions while a run is in progress, and records both investigation runtime and run timestamp in the rendered report.
+
 ## Threat Intel Enrichment
 
 The Threat Intelligence Agent enriches indicators before downstream reasoning.
@@ -165,6 +220,17 @@ The DNS helper lives in:
 
 - `tools/resolution_tools.py`
 
+## Prompt Locations
+
+The codebase uses role-scoped prompts rather than one shared global prompt file. The main prompt locations are:
+
+- `agents/planner.py` for the Planner agent's JSON investigation-plan prompt
+- `agents/investigator.py` for the Investigation agent's narrative summary prompt
+- `agents/critic.py` for the Critic agent's verification prompt
+- `agents/llm_utils.py` for the shared OpenAI text and JSON generation wrappers
+
+Prompt behavior is also paired with deterministic fallback logic, so invalid or unavailable LLM output does not stop the workflow.
+
 ## Shared State
 
 Key workflow state fields include:
@@ -179,14 +245,35 @@ Key workflow state fields include:
 - `attack_mapping`
 - `severity`
 - `confidence`
+- `route_decision`
+- `stop_reason`
 - `recommendations`
 - `draft_report`
 - `critic_feedback`
 - `final_report`
 - `errors`
 - `fallback_notes`
+- `validation_results`
+- `audit_log`
+- `policy_violations`
+- `source_attribution`
 - `needs_revision`
 - `revision_count`
+- `planner_output`
+- `threat_intel_output`
+- `investigation_output`
+
+The risk model is also represented explicitly through the `RiskAssessment` structure in `state.py`, which tracks:
+
+- `severity`
+- `confidence`
+- `score`
+- `priority`
+- `priority_score`
+- `likelihood_malicious`
+- `potential_impact`
+- `evidence_confidence`
+- grouped rationale signals for behavior, intelligence, context, and confidence adjustments
 
 ## Structured Report Format
 
@@ -212,6 +299,9 @@ Terminal cases keep the same structured report shape, but the evidence trail is 
 - Threat-intelligence API fallback is surfaced through `fallback_notes` and `errors`.
 - DNS resolution failures are recorded and the workflow continues with the remaining enrichment that is still possible.
 - The Critic agent can request one revision pass when the draft is low-confidence or contains unsupported claims.
+- Risk scoring now separates severity from priority and exposes both in the report output.
+- Analyst summaries are constrained to narrative prose, while structured scoring is rendered separately in the risk section.
+- Prompt-injection terminal cases still receive deterministic risk scoring and ATT&CK mapping where applicable.
 - The evaluation harness now supports per-metric scripted scoring and explicit `expected_stop_reason` checks.
 - The Streamlit sample selector now exposes all JSON files in `data/sample_alerts` across the supported input modes.
 - The evaluation summary CSVs now include workflow-efficiency columns such as API calls, DNS calls, agent executions, and revision count.
@@ -220,4 +310,4 @@ Terminal cases keep the same structured report shape, but the evidence trail is 
 
 - Milestone I: architecture, design document, and multi-agent workflow completed.
 - Milestone II: evaluation harness, benchmark cases, judge subset, and stop-reason-aware scripted scoring completed.
-- Milestone III: demo-oriented Streamlit UI is in place and shows the full investigation flow, though further visual polish is still possible.
+- Milestone III: demo-oriented Streamlit UI is in place with analyst and developer/audit presentation modes, report-style output, and persistent run-state feedback.

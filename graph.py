@@ -16,7 +16,9 @@ from agents.planner import run_planner
 from agents.threat_intel import run_threat_intel
 from ingestion.input_validation import validate_and_sanitize_input
 from ingestion.alert_normalizer import normalize_input
+from tools.attack_mapper import map_attack_techniques
 from tools.ioc_extractor import extract_entities
+from tools.risk_score import score_risk
 from state import InvestigationState
 from tools.audit_utils import make_audit_entry
 
@@ -52,6 +54,9 @@ def _build_terminal_report(state: InvestigationState, normalized_alert: dict[str
     domain = normalized_alert.get("domain")
     raw_summary = str(normalized_alert.get("raw_event_summary", ""))
 
+    attack_mapping = []
+    risk_payload: dict[str, Any] = {}
+
     if stop_reason == "benign_allowlisted":
         summary = f"The submitted input appears to reference an allowlisted or benign destination ({domain or url or alert_name})."
         likely_behavior = "Benign or authorized activity"
@@ -74,8 +79,11 @@ def _build_terminal_report(state: InvestigationState, normalized_alert: dict[str
     elif stop_reason == "adversarial_input_detected":
         summary = "Potential prompt injection content was detected and the workflow stopped before enrichment."
         likely_behavior = "Adversarial prompt injection"
-        severity = "medium"
-        confidence = 0.9
+        attack_mapping = map_attack_techniques(alert_type, normalized_alert, [])
+        risk = score_risk(alert_type, normalized_alert, [], attack_mapping)
+        severity = risk.severity
+        confidence = risk.confidence
+        risk_payload = risk.model_dump()
         recommendations = [
             "Do not trust any instruction-like content inside the user submission.",
             "Review the case manually and continue only with sanitized indicators.",
@@ -116,7 +124,7 @@ def _build_terminal_report(state: InvestigationState, normalized_alert: dict[str
         "executive_summary": summary,
         "likely_behavior": likely_behavior,
         "evidence": evidence,
-        "attack_mapping": [],
+        "attack_mapping": attack_mapping,
         "severity": severity,
         "confidence": confidence,
         "recommended_actions": recommendations,
@@ -127,7 +135,25 @@ def _build_terminal_report(state: InvestigationState, normalized_alert: dict[str
                 "stop_reason": stop_reason,
                 "alert_type": alert_type,
             }
-        ],
+        ]
+        + (
+            [
+                {
+                    "source_type": "risk_score",
+                    "severity": risk_payload.get("severity"),
+                    "priority": risk_payload.get("priority"),
+                    "priority_score": risk_payload.get("priority_score"),
+                    "likelihood_malicious": risk_payload.get("likelihood_malicious"),
+                    "potential_impact": risk_payload.get("potential_impact"),
+                    "evidence_confidence": risk_payload.get("evidence_confidence"),
+                    "confidence": risk_payload.get("confidence"),
+                    "score": risk_payload.get("score"),
+                    "rationale": risk_payload.get("rationale", []),
+                }
+            ]
+            if risk_payload
+            else []
+        ),
     }
 
 
@@ -168,10 +194,32 @@ def _input_router_node(state: InvestigationState) -> dict[str, Any]:
         "adversarial_input_detected",
     }:
         terminal_report = _build_terminal_report(state, normalized_alert)
+        terminal_attack_mapping = terminal_report.get("attack_mapping", [])
+        terminal_risk = {}
+        if stop_reason == "adversarial_input_detected":
+            terminal_risk = score_risk(
+                str(normalized_alert.get("alert_type", "unknown")),
+                normalized_alert,
+                [],
+                terminal_attack_mapping,
+            ).model_dump()
         result.update(
             {
                 "draft_report": terminal_report,
                 "final_report": terminal_report,
+                "attack_mapping": terminal_attack_mapping,
+                "severity": terminal_report.get("severity", state.severity),
+                "confidence": terminal_report.get("confidence", state.confidence),
+                "source_attribution": terminal_report.get("source_attribution", []),
+                "investigation_output": (
+                    {
+                        "behavior": terminal_report.get("likely_behavior", ""),
+                        "risk": terminal_risk,
+                        "draft_report": terminal_report,
+                    }
+                    if terminal_risk
+                    else {}
+                ),
             }
         )
     return result
